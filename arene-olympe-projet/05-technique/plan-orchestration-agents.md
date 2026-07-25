@@ -85,11 +85,30 @@ Pour un point d'avancement qui se relance tout seul pendant que tu travailles (e
 ```
 Le rythme s'auto-ajuste (mode dynamique) et s'arrête avec la session — aucune trace ni exécution une fois que tu as fini de travailler. C'est le bon niveau pour ce projet tant qu'il n'y a pas d'équipe ni de CI à surveiller en continu.
 
-### c. Escalade future (non activée maintenant)
-Si le projet grossit (plusieurs contributeurs, CI, génération d'assets en volume), on pourra migrer la Boucle A ou D vers une routine planifiée (cron) via le skill `schedule`, pour un vrai rapport récurrent indépendant d'une session ouverte. Décision explicitement repoussée pour l'instant — pas nécessaire pour un projet solo en Phase 0.
+### c. Boucle E — routine cloud autonome (activée le 2026-07-25)
+Contrairement à la décision initiale ci-dessous (conservée pour l'historique), une routine cloud planifiée (`schedule` / `RemoteTrigger`) tourne maintenant quotidiennement (9h Europe/Paris) sur le repo `Game_mobile`, sans session ouverte. Elle combine les Boucles C et D (création + cohérence des assets) avec une intégration `data/` minimale et un push automatique — voir section 8 ci-dessous pour le détail. C'est une exception au principe "aucune écriture sans confirmation" de la section 7 : cette boucle spécifique écrit et pousse seule, mais uniquement quand ses propres agents de revue donnent un verdict propre, et seulement dans un périmètre volontairement restreint (assets + `data/`, jamais `systems/`/`scenes/`).
+
+~~Décision initiale (dépassée) : si le projet grossit (plusieurs contributeurs, CI, génération d'assets en volume), on pourra migrer la Boucle A ou D vers une routine planifiée. Décision explicitement repoussée pour l'instant — pas nécessaire pour un projet solo en Phase 0.~~
 
 ---
 
-## 7. Rappel — aucun agent n'écrit sans confirmation
+## 7. Rappel — aucun agent n'écrit sans confirmation (sauf Boucle E, section 8)
 
-Les 6 agents du projet (`playtester`, `game-balance-auditor`, `lore-keeper`, `game-code-reviewer`, `asset-consistency-reviewer`, `scrum-master`) sont tous **lecture seule** : ils inspectent et rapportent, jamais n'éditent directement les docs, le code ou le planner. Toute mise à jour de fichier suggérée par un agent (cocher une case, changer un statut) passe par une confirmation explicite de ta part, appliquée par le skill ou par Claude directement.
+Les 6 agents du projet (`playtester`, `game-balance-auditor`, `lore-keeper`, `game-code-reviewer`, `asset-consistency-reviewer`, `scrum-master`) sont tous **lecture seule** : ils inspectent et rapportent, jamais n'éditent directement les docs, le code ou le planner. Toute mise à jour de fichier suggérée par un agent (cocher une case, changer un statut) passe par une confirmation explicite de ta part, appliquée par le skill ou par Claude directement — **en session locale**. La routine cloud de la section 8 est la seule exception délibérée à cette règle.
+
+---
+
+## 8. Boucle E — routine cloud autonome complète (création → assets → data → validation → push)
+
+**Ce qu'elle fait** : à chaque exécution (quotidienne, 9h Europe/Paris), dans cet ordre strict :
+
+1. **Verrou personnage principal** : si "Personnage jouable (féminin)" ou "(masculin)" n'est pas "Validé" dans `backlog-assets.md`, la session ne fait que ça (génération + revue `asset-consistency-reviewer`) — rien d'autre tant que la référence de style n'est pas fixée.
+2. **Repérage de l'acte/lieu en cours** : une fois le personnage validé, lecture de `plan-de-developpement.md` (Phase 4) pour trouver la première case non cochée, puis du fichier d'acte correspondant pour en extraire lieux, sorts, adversaires nommés.
+3. **Génération scopée à cet acte** : décor(s), icônes de sorts, portraits d'adversaires de cet acte uniquement (pas tout le backlog en une fois), via Higgsfield `generate_image` et les briefs de `briefs-generation-ia.md`.
+4. **Intégration code limitée à `data/`** : ajout/mise à jour des entrées déjà définies dans les docs (`liste-sorts.md`, `personnages-lore.md`) dans `arene-olympe-game/src/data/*.ts` uniquement — jamais `systems/` ni `scenes/` (mécaniques de jeu réservées à une validation humaine par playtest, voir Phase 1 du planner).
+5. **Validation automatique** : `asset-consistency-reviewer` sur les images, `lore-keeper` sur le narratif, `game-code-reviewer` + `game-balance-auditor` sur `data/`. Verdict propre → statut "Validé". Problème confirmé sur un item → revert de cet item seulement (ne bloque pas le reste), statut "Dérive détectée" ou "Généré (à revoir)".
+6. **Commit + push** direct sur `main` de `Game_mobile`, plafonné à 5 assets générés par run.
+
+**Prérequis techniques** : `.claude/agents/*.md` copiés dans `arene-olympe-game/.claude/agents/` (le repo de docs n'a que le snapshot manuel de `arene-olympe-projet/`, la routine cloud ne voit que ce qui est poussé sur `Game_mobile`), connecteur MCP Higgsfield rattaché à la routine, compte GitHub connecté au niveau claude.ai.
+
+**Limite assumée** : cette boucle ne touche jamais à la mécanique de jeu elle-même (Phases 1-3 du planner) — seulement contenu narratif, assets visuels, et données déclaratives déjà actées dans les docs. L'écriture de logique de jeu reste humaine, en session locale, avec revue explicite.
