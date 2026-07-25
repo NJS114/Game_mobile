@@ -100,7 +100,15 @@ Les 6 agents du projet (`playtester`, `game-balance-auditor`, `lore-keeper`, `ga
 
 ## 8. Boucle E — routine cloud autonome complète (création → assets → data → validation → push)
 
-**Ce qu'elle fait** : à chaque exécution (quotidienne, 9h Europe/Paris), dans cet ordre strict :
+**Garde-fous sécurité/coût (non négociables, vérifiés avant toute autre étape)** :
+- Aucune installation de logiciel/dépendance : pas de `npm install`, pas de nouveau paquet, `package.json`/`package-lock.json` jamais modifiés.
+- Aucun appel réseau en dehors de deux canaux autorisés : le connecteur MCP Higgsfield déjà configuré, et `git push` vers `https://github.com/NJS114/Game_mobile`. Pas de `curl`/`wget` vers d'autres domaines, pas de nouvelle connexion MCP, pas de compte/service tiers à créer.
+- Côté Higgsfield, seul l'outil `generate_image` est utilisé (celui déjà budgété pour ce projet) — jamais `generate_video`, `generate_3d`, `generate_audio`, `upscale_*`, Marketing Studio ou tout autre outil payant supplémentaire, même s'il semblait pertinent.
+- Aucune action de facturation/paiement, jamais (pas d'appel aux outils `balance`, `confirm_billing_purchase`, achat de crédits, changement de plan).
+- `Bash` limité à des opérations git (add/commit/push, status/diff) et de la lecture de fichiers (ls, mkdir pour les dossiers du projet) — jamais de script arbitraire ni de téléchargement/exécution de binaire externe.
+- Si une étape semble nécessiter de sortir de ce périmètre (nouvel outil, nouvelle dépendance, nouveau service), la routine s'arrête et laisse une note dans son commit plutôt que d'improviser.
+
+**Ce qu'elle fait** : à chaque exécution (quotidienne, 9h Europe/Paris), une fois les garde-fous ci-dessus respectés, dans cet ordre strict :
 
 1. **Verrou personnage principal** : si "Personnage jouable (féminin)" ou "(masculin)" n'est pas "Validé" dans `backlog-assets.md`, la session ne fait que ça (génération + revue `asset-consistency-reviewer`) — rien d'autre tant que la référence de style n'est pas fixée.
 2. **Repérage de l'acte/lieu en cours** : une fois le personnage validé, lecture de `plan-de-developpement.md` (Phase 4) pour trouver la première case non cochée, puis du fichier d'acte correspondant pour en extraire lieux, sorts, adversaires nommés.
